@@ -12,15 +12,28 @@ from emblcmci.foci3Dtracker import PreprocessChromosomeDots as PPC
 from ij.plugin import ChannelSplitter as CS
 from ij.plugin import RGBStackMerge as StackMerge
 from emblcmci.foci3Dtracker import AutoThresholdAdjuster3D as ATA
-from ij.io import DirectoryChooser
+from ij.io import DirectoryChooser, Opener
 from ij.process import ImageConverter
+from ij import WindowManager
+from ij.text import TextWindow
+from ij import IJ
 
-# SET SEGMENTATION VOLUME THRESHOLD TO 10!!!
+# class timePoint should be in a separate file at some point.
+class timePoint(object):
+
+    def __init__(self, string):
+        print string
+
+
+
 
 
 G_saveSubFold = "meas"   # name of the subfolder that is suppodes to contain the result values and images
 
 def readResults(windowTitle):
+   textPanel = WindowManager.getFrame(windowTitle).getTextPanel()
+   headings = textPanel.getColumnHeadings()
+   
    "get results from TextWindow with java.lang.string title"
    resolver = re.compile('\d+\t(?P<frame>\d+\.0+)\t(?P<fsDistance>\d+\.\d+)\t(?P<ffDistance>\d+\.\d+)\t(?P<ssDistance>\d+\.\d+)\t(?P<fVol>\d+\.\d+)\t(?P<sVol>\d+\.\d+)')
    frameA = []
@@ -66,6 +79,7 @@ def makeTw(imp, FrameA, DistA, volFcA, volScA): #xFcA, yFcA, zFcA, xScA, yScA, z
          DistMy = "NA"
       time = "%.1f" % (timeInterval * float(FrameA[row]))
       tw.append(str(int(FrameA[row])+1)+"\t"+time+"\t"+DistMy+"\t"+volFcA[row]+"\t"+volScA[row])
+      timePoint("test-tp")
    return tw
 
 #- - -   M A I N   - - -
@@ -101,15 +115,17 @@ for image in moFileList:
    WindowManager.getImage("DUP_C2-"+image.group()).close()
    frameA, distA, volFcA, volScA = readResults("Statistics_Distance")   # get results from "Statistics_Distance" window
    WindowManager.getFrame("Statistics_Distance").close(False)
-   # = readPositions("Statistics_ChI")
-   WindowManager.getFrame("Statistics_Ch0").close(False) 
-   # = readPositions("Statistics_ChII")
-   WindowManager.getFrame("Statistics_Ch1").close(False)
+
+
+   
 
    frameA, distA, volFcA, volScA = fillUpFrames(frameA, distA, volFcA, volScA)
    tw = makeTw(imp, frameA, distA, volFcA, volScA)
    tw.getTextPanel().saveAs(saveFolder +"/val_" + image.group('name') + ".tsv") # save filledup results as text
    WindowManager.getFrame("Summary").close(False)
+   WindowManager.getFrame("Statistics_Ch0").close(False)
+   WindowManager.getFrame("Statistics_Ch1").close(False)
+   
    detDots = WindowManager.getImage("DetectedDots")
    detDots.copyScale(imp)
    IJ.saveAs(detDots, ".tiff", saveFolder + "/zi_"+image.group('name')) # save the overlay with connecting line
