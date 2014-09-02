@@ -29,10 +29,14 @@ class fr:
             
             x_ch0, y_ch0, z_ch0 = self.ch0Dot.getXYZ()
             x_ch1, y_ch1, z_ch1 = self.ch1Dot.getXYZ()
+            
             if (self.ch0Dot.getXYZ() != ("NA", "NA", "NA")) or (self.ch0Dot.getXYZ() != ("NA", "NA", "NA")):
-                calDist = math.sqrt( math.pow((x_ch0-x_ch1),2)
-                                   + math.pow((y_ch0-y_ch1),2)
-                                   + math.pow((z_ch0-z_ch1),2) )
+                calDist = math.sqrt( math.pow((x_ch0-x_ch1),2.0)
+                                   + math.pow((y_ch0-y_ch1),2.0)
+                                   + math.pow((z_ch0-z_ch1),2.0) )
+                #nonZpxDist =
+                #ZcpxDist =
+            print "Fr" + str(self.frame) + "Kota px Dist:" + str(self.distance) +"; nonZpxDist:" + str()                       
             print "Frame "+ str(self.frame), ": Calc dist " + str(calDist)
                                  
             # calculate distances from points themselves and compare
@@ -61,9 +65,12 @@ class dot(object):
         try:
             self.dotID = int(float(dotID))
             self.vol = int(float(vol))
+            self.xPx = x
+            self.yPx = y
+            self.zPx = z
             self.x = round((calibration.pixelWidth * float(x)), 5)
-            self.y = round((calibration.pixelWidth * float(y)), 5)
-            self.z = round((calibration.pixelHeight * float(z)), 5) # "%.5f" %
+            self.y = round((calibration.pixelHeight * float(y)), 5)
+            self.z = round((calibration.pixelDepth * float(z)), 5) # "%.5f" %
         except ValueError:  # if is "NA"
             self.dotID = "NA"
             self.vol = "NA"
@@ -79,6 +86,9 @@ class dot(object):
 
     def getXYZ(self):
         return self.x, self.y, self.z
+        
+    def getXYZpx(self):
+        return self.xPx, self.yPx, self.zPx
 
 
 def tableToDots(lines, ch):
@@ -135,6 +145,7 @@ for image in moFileList: # get rid of 0!
     # read calibration for later calculation of distances in um.
     calibration = imp.getCalibration()
     pxWidth = calibration.pixelWidth
+    print "px depth", calibration.pixelDepth
     timeInterval = round(calibration.frameInterval)
 
     #start measurement
@@ -173,7 +184,6 @@ for image in moFileList: # get rid of 0!
     for f in missingFrames:
         frameList.append(fr(f, None, None, None))
 
-    print "FrameList", frameList
     #sort by frame
 
     # write to file.
