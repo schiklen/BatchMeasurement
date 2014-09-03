@@ -9,8 +9,9 @@ from ij.plugin.filter import Filler as CO
 from emblcmci.foci3Dtracker import PreprocessChromosomeDots as PPC
 from ij.plugin import ChannelSplitter as CS
 from ij.plugin import RGBStackMerge as StackMerge
-from ij.io import DirectoryChooser
+from ij.io import DirectoryChooser, Opener
 from ij.process import ImageConverter
+from ij import IJ, WindowManager
 
 G_saveSubFold = "ppcd"
 G_saveFilePrefix = "ppcd_"

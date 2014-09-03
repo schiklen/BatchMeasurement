@@ -6,9 +6,12 @@ from os import path as pth
 from os import makedirs as mkdir
 from os import listdir
 from java.awt.event import KeyEvent, KeyAdapter, MouseEvent, MouseAdapter
-from ij.plugin import Zoom
-from ij.gui import Overlay
+from ij.plugin import Zoom, Duplicator
+from ij.plugin.frame import RoiManager
+from ij.gui import Overlay, YesNoCancelDialog
 from ij.io import OpenDialog, Opener
+from ij import WindowManager
+from ij import IJ
 
 
 G_saveSubFold = "cutout"

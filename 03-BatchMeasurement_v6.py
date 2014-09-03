@@ -17,11 +17,14 @@ from ij import IJ, WindowManager
 # GLOBALS
 G_saveSubFold = "meas"   # name of the subfolder that is suppodes to contain the result values and images
 
+def calc3DDistance(x_ch0, y_ch0, z_ch0, x_ch1, y_ch1, z_ch1):
+    return math.sqrt( math.pow((x_ch0-x_ch1),2.0) + math.pow((y_ch0-y_ch1),2.0) + math.pow((z_ch0-z_ch1),2.0) )
+
 
 class fr:
     def __init__(self, frame, distance, ch0DotList, ch1DotList):
         self.frame = int(float(frame))
-        self.time = "%.1f" % (timeInterval * float(frame))
+        self.time = round((timeInterval * float(frame)), 1) # "%.1f" % 
         try:
             self.distance = round((calibration.pixelWidth * float(distance)), 5)
             self.ch0Dot = ch0DotList
@@ -29,15 +32,22 @@ class fr:
             
             x_ch0, y_ch0, z_ch0 = self.ch0Dot.getXYZ()
             x_ch1, y_ch1, z_ch1 = self.ch1Dot.getXYZ()
+            # this part is for processing of px-based values.
+            zFactor = calibration.pixelHeight/calibration.pixelDepth
+            x_ch0px, y_ch0px, z_ch0px = self.ch0Dot.getXYZpx()
+            x_ch1px, y_ch1px, z_ch1px = self.ch1Dot.getXYZpx()
+            z_ch0pxCorr = zFactor * z_ch0px
+            z_ch1pxCorr = zFactor * z_ch1px
             
             if (self.ch0Dot.getXYZ() != ("NA", "NA", "NA")) or (self.ch0Dot.getXYZ() != ("NA", "NA", "NA")):
                 calDist = math.sqrt( math.pow((x_ch0-x_ch1),2.0)
                                    + math.pow((y_ch0-y_ch1),2.0)
                                    + math.pow((z_ch0-z_ch1),2.0) )
-                #nonZpxDist =
-                #ZcpxDist =
-            print "Fr" + str(self.frame) + "Kota px Dist:" + str(self.distance) +"; nonZpxDist:" + str()                       
-            print "Frame "+ str(self.frame), ": Calc dist " + str(calDist)
+                nonZ_pxDist = calc3DDistance(x_ch0px, y_ch0px, z_ch0px, x_ch1px, y_ch1px, z_ch1pxCorr)
+                Zcorr_pxDist = calc3DDistance(x_ch0px, y_ch0px, z_ch0pxCorr, x_ch1px, y_ch1px, z_ch1pxCorr)
+                
+            print str(self.frame) + "," + str(self.distance) + "," + str(nonZ_pxDist) + "," + str(Zcorr_pxDist)                      
+            #print "Frame "+ str(self.frame), ": Calc dist " + str(calDist)
                                  
             # calculate distances from points themselves and compare
             # sqrt(x^2 + y^2 + z^2)
@@ -88,7 +98,7 @@ class dot(object):
         return self.x, self.y, self.z
         
     def getXYZpx(self):
-        return self.xPx, self.yPx, self.zPx
+        return float(self.xPx), float(self.yPx), float(self.zPx)
 
 
 def tableToDots(lines, ch):
@@ -156,9 +166,9 @@ for image in moFileList: # get rid of 0!
     # move image to "segProblem" folder
     # continue
 
-    #WindowManager.getImage("binProjMerged").close()
-    #WindowManager.getImage("DUP_C1-"+image.group()).close()
-    #WindowManager.getImage("DUP_C2-"+image.group()).close()
+    WindowManager.getImage("binProjMerged").close()
+    WindowManager.getImage("DUP_C1-"+image.group()).close()
+    WindowManager.getImage("DUP_C2-"+image.group()).close()
 
     # read the measurements from results tables.
     distance_lines = WindowManager.getFrame("Statistics_Distance").getTextPanel().getText().split("\n")
