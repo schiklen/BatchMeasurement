@@ -3,6 +3,7 @@
 
 from os import listdir, makedirs
 from os import path as pth
+import pickle
 import os, re, math
 from ij.plugin.filter import Filler as CO
 from emblcmci.foci3Dtracker import PreprocessChromosomeDots as PPC
@@ -20,6 +21,35 @@ G_saveSubFold = "meas"   # name of the subfolder that is suppodes to contain the
 def calc3DDistance(x_ch0, y_ch0, z_ch0, x_ch1, y_ch1, z_ch1):
     return math.sqrt( math.pow((x_ch0-x_ch1),2.0) + math.pow((y_ch0-y_ch1),2.0) + math.pow((z_ch0-z_ch1),2.0) )
 
+class cell(object):
+    def __init__(self, frameList): # should be constructed based on path.
+        self.frameList = frameList # here: sort by framenumber!
+
+    def exportData(self, exportFilePath):
+        "A method to export xyz coordinates in microns, distances and all as .csv file"
+        f = open(exportFilePath, "w")
+        # Write a header
+        # Date, strain, position, cell, separator sign "!"
+        #write column names
+        f.write("Frame,Timepoint,Distance,ch0x,ch0y,ch0z,ch0vol,ch1x,ch1y,ch1z,ch1vol\n")
+        for frame in self.frameList:
+            frameNumber = str(frame.getFrameNo())
+            timepoint = str(frame.getTime())
+            distance = str(frame.getDistance())# is always z-corrected distance in microns
+            ch0Dot, ch1Dot = frame.getDots()
+            ch0x, ch0y, ch0z = ch0Dot.getXYZ()
+            ch0vol = str(ch0Dot.getVol())
+            ch1x, ch1y, ch1z = ch1Dot.getXYZ()
+            ch1vol = str(ch1Dot.getVol())
+            line = frameNumber+","+timepoint+","+distance+","+str(ch0x)+","+str(ch0y)+","+str(ch0z)+","+ch0vol+","+str(ch1x)+","+str(ch1y)+","+str(ch1z)+","+ch1vol+"\n"
+            f.write(line)
+        f.close()
+
+    def serialize(self, filePath):
+        #pickle it
+        print "serizalization in progress"
+
+            
 
 class fr:
     def __init__(self, frame, distance, ch0DotList, ch1DotList):
@@ -40,17 +70,11 @@ class fr:
             z_ch1pxCorr = zFactor * z_ch1px
             
             if (self.ch0Dot.getXYZ() != ("NA", "NA", "NA")) or (self.ch0Dot.getXYZ() != ("NA", "NA", "NA")):
-                calDist = math.sqrt( math.pow((x_ch0-x_ch1),2.0)
+                self.micronDist = math.sqrt( math.pow((x_ch0-x_ch1),2.0)
                                    + math.pow((y_ch0-y_ch1),2.0)
                                    + math.pow((z_ch0-z_ch1),2.0) )
                 nonZ_pxDist = calc3DDistance(x_ch0px, y_ch0px, z_ch0px, x_ch1px, y_ch1px, z_ch1pxCorr)
                 Zcorr_pxDist = calc3DDistance(x_ch0px, y_ch0px, z_ch0pxCorr, x_ch1px, y_ch1px, z_ch1pxCorr)
-                
-            print str(self.frame) + "," + str(self.distance) + "," + str(nonZ_pxDist) + "," + str(Zcorr_pxDist)                      
-            #print "Frame "+ str(self.frame), ": Calc dist " + str(calDist)
-                                 
-            # calculate distances from points themselves and compare
-            # sqrt(x^2 + y^2 + z^2)
         # in case no dot was found
         except ValueError:
             self.distance = None
@@ -63,8 +87,17 @@ class fr:
     #def __cmp__(self): # defines sorting criterium
         #return self.frame
 
-    def getFrame(self):
+    def getFrameNo(self):
         return self.frame
+
+    def getDots(self):
+        return self.ch0Dot, self.ch1Dot
+
+    def getDistance(self):
+        return self.distance
+
+    def getTime(self):
+        return self.time
 
 
 class dot(object):
@@ -109,6 +142,8 @@ def tableToDots(lines, ch):
     return dotList
 
 def dotListToSingle(dotList):
+    if len(dotList) > 1:
+       return dotList.pop()
     if len(dotList) == 1:
        return dotList.pop()
     if len(dotList) == 0:
@@ -175,33 +210,31 @@ for image in moFileList: # get rid of 0!
     ch0_dots = tableToDots(WindowManager.getFrame("Statistics_Ch0").getTextPanel().getText().split("\n"), 0)
     ch1_dots = tableToDots(WindowManager.getFrame("Statistics_Ch1").getTextPanel().getText().split("\n"), 1)
 
-    #WindowManager.getFrame("Statistics_Distance").close(False)
-    #WindowManager.getFrame("Statistics_Ch0").close(False)
-    #WindowManager.getFrame("Statistics_Ch1").close(False)
+    WindowManager.getFrame("Statistics_Distance").close(False)
+    WindowManager.getFrame("Statistics_Ch0").close(False)
+    WindowManager.getFrame("Statistics_Ch1").close(False)
 
     frameList = []
     for l in distance_lines[1:len(distance_lines)-1]:
         index, frame, distance, ch0dist, ch1dist, ch0vol, ch1vol = l.split("\t")
-        # find respective frame in ch0 and ch1 dot list. Problem, if both dots have same volume.        
+        # find respective frame in ch0 and ch1 dot list. Problem, if both dots have same volume. Vol can be identical!       
         ch0DotList = dotListToSingle( [d for d in ch0_dots if (d.getFrame() == int(float(frame)) and d.getVol() == int(float(ch0vol)) )] )
         ch1DotList = dotListToSingle( [d for d in ch1_dots if (d.getFrame() == int(float(frame)) and d.getVol() == int(float(ch1vol)) )] )
+
         frameList.append(fr(frame, distance, ch0DotList, ch1DotList))
 
     # fill up table with unsegmented frames.
-    presentFrames = [f.getFrame() for f in frameList]
+    presentFrames = [f.getFrameNo() for f in frameList]
     missingFrames = [f for f in range(max(presentFrames)) if f not in presentFrames]
 
     for f in missingFrames:
         frameList.append(fr(f, None, None, None))
+ 
+    #sort by frame   
 
-    #sort by frame
-
+    c = cell(frameList)
     # write to file.
-
-    #------------ OLD
-    #tw = makeTw(frameA, distA, volFcA, volScA)
-    #tw.getTextPanel().saveAs(saveFolder +"/val_" + image.group('name') + ".tsv") # save filledup results as text
-    #WindowManager.getFrame("Summary").close(False)
+    c.exportData(saveFolder +"/val_" + image.group('name') + ".csv")
 
     # save Z-projection image with marked dots
     detDots = WindowManager.getImage("DetectedDots")

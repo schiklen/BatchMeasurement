@@ -37,13 +37,10 @@ def openRandom(event):      # when click here: get random cell and meas.measure(
       mF.setMainDir(mainDir)
       print "Setting new main dir to", mainDir
    try:
-      print "1"
       meas.closeWindows()
    finally:
-      print "2"
-      print "glob" + str(glob.glob(os.path.join(mF.getMainDir(),"*", G_OPENSUBDIR ,"val_*.tsv")) )
       inFiles = glob.glob(os.path.join(mF.getMainDir(),"*", G_OPENSUBDIR ,"val_*.tsv"))  # glob.glob returns list of paths
-      print "3"
+      print inFiles
       uncheckedCells = [cell(tsvPath) for tsvPath in inFiles if cell(tsvPath).processed == False]
       if len(uncheckedCells) > 0:
          randomCell = random.choice(uncheckedCells)
