@@ -24,6 +24,8 @@ def calc3DDistance(x_ch0, y_ch0, z_ch0, x_ch1, y_ch1, z_ch1):
 class cell(object):
     def __init__(self, frameList): # should be constructed based on path.
         self.frameList = frameList # here: sort by framenumber!
+        self.position =
+        self.index =
 
     def exportData(self, exportFilePath):
         "A method to export xyz coordinates in microns, distances and all as .csv file"
@@ -170,7 +172,7 @@ inputDir = DirectoryChooser("DotSeg Preprocess Batch Extension - Please choose d
 saveFolder = pth.join(pth.split(pth.dirname(inputDir))[0], G_saveSubFold)
 print "Will save results in folder ", saveFolder
 
-regEx = re.compile('ppcd_(?P<name>p\d+_c\d+).tif$', re.IGNORECASE)   # create list of match objects of .tiff files in directory
+regEx = re.compile('ppcd_(?P<name>p\d+_c\d+).tif$', re.IGNORECASE)   # create list of match objects of .tif files in directory
 moFileList = []                                               # match object File list
 for fileName in listdir(inputDir):
     if regEx.match(fileName):                                  # if matches RE, add to list
