@@ -24,8 +24,8 @@ def calc3DDistance(x_ch0, y_ch0, z_ch0, x_ch1, y_ch1, z_ch1):
 class cell(object):
     def __init__(self, frameList): # should be constructed based on path.
         self.frameList = frameList # here: sort by framenumber!
-        self.position =
-        self.index =
+        #self.position =
+        #self.index =
 
     def exportData(self, exportFilePath):
         "A method to export xyz coordinates in microns, distances and all as .csv file"
@@ -57,11 +57,20 @@ class fr:
     def __init__(self, frame, distance, ch0DotList, ch1DotList):
         self.frame = int(float(frame))
         self.time = round((timeInterval * float(frame)), 1) # "%.1f" % 
-        try:
+        if distance == None:  # No distance -> at least one dot is missing.
+            self.distance = "NA"
+            if ch0DotList == None:
+                self.ch0Dot = dot(0, self.frame, "NA", "NA", "NA", "NA", "NA", "NA")
+            else: # not the case yet since reading is based on distance table
+                self.ch0Dot = ch0DotList
+            if ch1DotList == None:
+                self.ch1Dot = dot(1, self.frame, "NA", "NA", "NA", "NA", "NA", "NA")
+            else: # not the case yet since reading is based on distance table
+                self.ch1Dot = ch1DotList
+        else:
             self.distance = round((calibration.pixelWidth * float(distance)), 5)
             self.ch0Dot = ch0DotList
             self.ch1Dot = ch1DotList
-            
             x_ch0, y_ch0, z_ch0 = self.ch0Dot.getXYZ()
             x_ch1, y_ch1, z_ch1 = self.ch1Dot.getXYZ()
             # this part is for processing of px-based values.
@@ -77,11 +86,7 @@ class fr:
                                    + math.pow((z_ch0-z_ch1),2.0) )
                 nonZ_pxDist = calc3DDistance(x_ch0px, y_ch0px, z_ch0px, x_ch1px, y_ch1px, z_ch1pxCorr)
                 Zcorr_pxDist = calc3DDistance(x_ch0px, y_ch0px, z_ch0pxCorr, x_ch1px, y_ch1px, z_ch1pxCorr)
-        # in case no dot was found
-        except ValueError:
-            self.distance = None
-            self.ch0Dotlist = None
-            self.ch1DotList = None
+
 
     def __repr__(self): # defines the print output.
         return "Frametime " + str(self.time)
@@ -232,7 +237,8 @@ for image in moFileList: # get rid of 0!
     for f in missingFrames:
         frameList.append(fr(f, None, None, None))
  
-    #sort by frame   
+    #sort by frame
+    frameList.sort(key=lambda x: x.getFrameNo())  
 
     c = cell(frameList)
     # write to file.

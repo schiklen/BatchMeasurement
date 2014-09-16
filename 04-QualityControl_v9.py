@@ -1,14 +1,11 @@
 from javax.swing import JButton, JFrame, JPanel, JLabel, JTextArea, JScrollPane, JProgressBar, SwingConstants, WindowConstants, JRadioButton, ButtonGroup
-from java.awt import Component, GridLayout
-from java.awt.event import ActionListener
+from java.awt import Component, Dimension, GridLayout
 import re, random, os, sys, glob
-from java.awt.event import KeyEvent, KeyAdapter, MouseEvent, MouseAdapter
+from java.awt.event import ActionListener, KeyEvent, KeyAdapter, MouseEvent, MouseAdapter, WindowFocusListener
 from ij.plugin import Zoom
 from ij import WindowManager, IJ, ImagePlus
 from ij.text import TextWindow, TextPanel
 from ij.io import DirectoryChooser
-
-
 
 # go through frames with arrowleft ()
 # 0: anaphase Onset
@@ -27,30 +24,13 @@ def quit(event):
     try:
        meas.closeWindows()
     finally:
-       WindowManager.removeWindow(mF.frame)
-       mF.frame.dispose()
+       WindowManager.removeWindow(mF)
+       mF.dispose()
    
 def openE(event):
     meas.closeWindows()
     meas.measure()
 
-def openRandom(event):      # when click here: get random cell and meas.measure(tsv, tif, savePath)
-    if mF.getMainDir() == "":
-        mainDir = DirectoryChooser("Random QC - Please choose main directory containing ctrl and test folders").getDirectory()
-        mF.setMainDir(mainDir)
-        print "Setting new main dir to", mainDir
-    try:
-        meas.closeWindows()
-    finally:
-        inFiles = glob.glob(os.path.join(mF.getMainDir(),"*", G_OPENSUBDIR ,"val_*.csv"))  # glob.glob returns list of paths
-        uncheckedCells = [cell(tsvPath) for tsvPath in inFiles if cell(tsvPath).processed == False]
-        if len(uncheckedCells) > 0:
-            randomCell = random.choice(uncheckedCells)
-            mF.setProgBarMax(len(inFiles)-1)
-            mF.setProgBarVal(len(inFiles)-len(uncheckedCells))
-            meas.measure(randomCell)
-        else:
-            print "All cells measured!"
 
 def changeFrame(tp):
     imp = IJ.getImage()     # wrong. how can I propagate the imp of meas?
@@ -83,15 +63,34 @@ class ListenToMouse(MouseAdapter):
 
 class Rbal(ActionListener):
     def actionPerformed(self, e):
+        #e.getSource().getParent().getParent()
         mF.setSaveActive()
+
+class twFocusListener(WindowFocusListener):
+    def windowGainedFocus(self, e):
+        tw = e.getWindow()
+        print tw
+        #tw.getTextPanel().requestFocusInWindow()
+
+    def windowLostFocus(self, e):
+        print e.getWindow()
+
+
+class MainFocusListener(WindowFocusListener):
+    def windowGainedFocus(self, e):
+        print "gained focus"
+        e.get
+
+    def windowLostFocus(self, e):
+        print "lost focus"
 
 
 class cell(object):
-    def __init__(self, tsvPath):
-        self.tsvPath = tsvPath
-        self.openDir, self.filename = os.path.split(self.tsvPath)
-        tsvRE = re.compile( os.path.join('(?P<mainDir>.*)', '(?P<strain>.*)', G_OPENSUBDIR ,'val_p(?P<position>\d+)_c(?P<cell>\d+).csv') )    
-        pathMO = re.match(tsvRE, tsvPath)
+    def __init__(self, csvPath):
+        self.csvPath = csvPath
+        self.openDir, self.filename = os.path.split(self.csvPath)
+        csvRE = re.compile( os.path.join('(?P<mainDir>.*)', '(?P<strain>.*)', G_OPENSUBDIR ,'val_p(?P<position>\d+)_c(?P<cell>\d+).csv') )    
+        pathMO = re.match(csvRE, csvPath)
         self.mainDir = pathMO.group('mainDir')
         self.strain = pathMO.group('strain')
         self.position = int(pathMO.group('position'))
@@ -118,35 +117,33 @@ class cell(object):
         self.anOn = anOn
       
 
-class MenueFrame(object): # should extend JFrame
+class MenueFrame(JFrame): # should extend JFrame
     def __init__(self):
         self.mainDir = ""
-   
-        self.frame = JFrame("Dots Quality Check", size=(250,300))
-        self.frame.setLocation(20,120)
+
+        self.setTitle("Dots Quality Check")
+        self.setSize(250, 300)
+        self.setLocation(20,120)
+        self.addWindowFocusListener(MainFocusListener())
+        
         self.Panel = JPanel(GridLayout(0,1))
-        self.frame.add(self.Panel)
-
-        self.openNextButton = JButton('Open Next Random', actionPerformed=openRandom)
+        self.add(self.Panel)
+        self.openNextButton = JButton("Open Next Random", actionPerformed=self.openRandom)
         self.Panel.add(self.openNextButton)
-      
-        self.saveButton = JButton('Save', actionPerformed=save, enabled=False)
+        self.saveButton = JButton("Save", actionPerformed=self.save, enabled=False)
         self.Panel.add(self.saveButton)
-
-        self.cropButton = JButton('Crop values from here', actionPerformed=cropVals)
+        self.cropButton = JButton("Crop values from here", actionPerformed=self.cropVals)
         self.Panel.add(self.cropButton)
-
-        self.DiscardButton = JButton('Discard cell', actionPerformed=discardCell, enabled=True)
+        self.DiscardButton = JButton("Discard cell", actionPerformed=self.discardCell)
         self.Panel.add(self.DiscardButton)
-
-        self.quitButton = JButton('Quit script',actionPerformed=quit)
+        self.quitButton = JButton("Quit script",actionPerformed=quit)
         self.Panel.add(self.quitButton)
 
         annoPanel = JPanel()
         #add gridlayout
         wtRButton = JRadioButton("wt", actionCommand="wt")
         wtRButton.addActionListener(Rbal())
-        defectRButton = JRadioButton("Defect", actionCommand="defect", actionPerformed=self.setSaveActive)
+        defectRButton = JRadioButton("Defect", actionCommand="defect")
         defectRButton.addActionListener(Rbal())
         annoPanel.add(wtRButton)
         annoPanel.add(defectRButton)
@@ -165,17 +162,70 @@ class MenueFrame(object): # should extend JFrame
         self.pathLabel.setHorizontalAlignment( SwingConstants.CENTER )
         self.Panel.add(self.pathLabel)
       
-        WindowManager.addWindow(self.frame)
+        WindowManager.addWindow(self)
         self.show()
+
+    # - - - -   B U T T O N   M E T H O D S  - - - -
+    # - - - - - -  - - - - - - - - - - - - - - - - -
+    def openRandom(self, event):      # when click here: get random cell and meas.measure(csv, tif, savePath)
+        if self.mainDir == "":
+            self.mainDir = DirectoryChooser("Random QC - Please choose main directory containing ctrl and test folders").getDirectory()
+            print "Setting new main dir to", self.mainDir
+        try:
+            meas.closeWindows()
+        finally:
+            inFiles = glob.glob(os.path.join(self.mainDir, "*", G_OPENSUBDIR, "val_*.csv"))  # glob.glob returns list of paths
+            uncheckedCells = [cell(csvPath) for csvPath in inFiles if cell(csvPath).processed == False]
+            if len(uncheckedCells) > 0:
+                randomCell = random.choice(uncheckedCells)
+                self.ProgBar.setMaximum(len(inFiles)-1)
+                self.ProgBar.setValue(len(inFiles)-len(uncheckedCells))
+                meas.measure(randomCell)
+            else:
+                print "All cells measured!"
+
+    def save(self, event):
+        anaphase = meas.getAnOn()
+        timeInterval = meas.getImp().getCalibration().frameInterval
+        annotation = self.getAnnotation()
+        position = str(meas.cell.position)
+        cellIndex = str(meas.cell.cellNo)
+        if not os.path.exists(os.path.split(meas.cell.savePath)[0]): # check if save folder present.
+            os.makedirs(os.path.split(meas.cell.savePath)[0]) # create save folder, if not present
+        f = open(meas.cell.savePath ,"w")
+        # Position Cell Phenotype Frame Time AnOn Distance ch0x ch0y ch0z ch0vol ch1x ch1y ch1z ch1vol
+        f.write("Position,Cell,Phenotype,Frame,Time,Anaphase,Distance,ch0x,ch0y,ch0z,ch0vol,ch1x,ch1y,ch1z,ch1vol\n")
+        for i in range(meas.tp.getLineCount()):
+            frame, distance, a = meas.tp.getLine(i).split("\t")
+            corrFrame = str(int(frame)-int(anaphase))
+            time = "%.f" % (round(timeInterval) * int(corrFrame))
+            if distance == "NA":
+                ch0x, ch0y, ch0z, ch0vol, ch1x, ch1y, ch1z, ch1vol = "NA," * 7 + "NA"
+            else:
+                ch0x, ch0y, ch0z, ch0vol, ch1x, ch1y, ch1z, ch1vol = PositionsTable[i]
+            f.write(position+","+cellIndex+","+annotation+","+corrFrame+","+time+","+anaphase+","+distance+","+ch0x+","+ch0y+","+ch0z+","+ch0vol+","+ch1x+","+ch1y+","+ch1z+","+ch1vol)
+        f.close()
+        print "Successfully saved ", meas.cell.savePath
+
+    def cropVals(self, event): #"this function deletes all values with frame > current cursor"   
+        print meas.tp.getLineCount()
+        for line in range(meas.tp.getSelectionEnd(), meas.tp.getLineCount(), 1):
+            frame, distance, AOCol = meas.tp.getLine(line).split("\t")
+            #print line
+            meas.tp.setLine(line, frame + "\tNA" + "\t" + AOCol)
+
+    def discardCell(self, event):
+        if not os.path.exists(os.path.split(meas.cell.savePath)[0]): # check if save folder present.
+            os.makedirs(os.path.split(meas.cell.savePath)[0]) # create save folder, if not present.
+        f = open(meas.cell.savePath ,"w")
+        # Position Cell Phenotype Frame Time AnOn Distance ch0x ch0y ch0z ch0vol ch1x ch1y ch1z ch1vol
+        f.write("Position,Cell,Phenotype,Frame,Time,AnOn,Distance,ch0x,ch0y,ch0z,ch0vol,ch1x,ch1y,ch1z,ch1vol\n")
+        f.close()
+        print "Discarded cell - saved dummy" 
+        
 
     def getAnnotation(self):
         return self.aButtonGroup.getSelection().getActionCommand()
-
-    def show(self):
-        self.frame.visible = True
-
-    def getFrame(self):
-        return self.frame
 
     def setSaveActive(self):
         if (self.getAnnotation() != None and meas.getAnOn() != None):
@@ -193,15 +243,9 @@ class MenueFrame(object): # should extend JFrame
     def getMainDir(self):
         return self.mainDir
 
-    def setProgBarMax(self, maximum):
-        self.ProgBar.setMaximum(maximum)
-
-    def setProgBarVal(self, value):
-        self.ProgBar.setValue(value)
-
     def close():
-        WindowManager.removeWindow(self.frame)
-        self.frame.dispose()     
+        WindowManager.removeWindow(self)
+        self.dispose()     
 
 class Measurer:
     "class contains the table (TextWindow and TextPanel) and imp for"
@@ -211,7 +255,7 @@ class Measurer:
     def measure(self, cell):
         self.cell = cell
         self.imp = self.openImp(cell.tifPath)
-        self.tw = self.openTW(cell.tsvPath)
+        self.tw = self.openTW(cell.csvPath)
         self.tp = self.tw.getTextPanel()
         self.tp.addKeyListener(ListenToKey())
         self.tp.addMouseListener(ListenToMouse())
@@ -219,7 +263,9 @@ class Measurer:
         frame, distance, AO = self.tp.getLine(self.tp.getSelectionEnd()).split("\t")
         self.imp.setSlice(int(frame))
         mF.setSaveInactive()
-        # here: putFocus on tw
+        # putFocus on tw
+        self.tw.requestFocus(False)
+        
         # arrange Windows properly!
 
     def openImp(self, path):
@@ -228,10 +274,12 @@ class Measurer:
         imp.getWindow().setLocationAndSize(280, 120, imp.getWidth()*4, imp.getHeight()*4) # int x, int y, int width, int height
         return imp
 
-    def openTW(self, openPath_tsv):
-        txtfile = open(openPath_tsv)
+    def openTW(self, openPath_csv):
+        txtfile = open(openPath_csv)
         heads = txtfile.readlines(1)[0].split(",")
         tw = TextWindow("Results", heads[0]+"\t"+heads[2]+"\t Anaphase", "", 50, 500)
+        tw.requestFocus()
+        #tw.addWindowFocusListener(twFocusListener)
         for line in txtfile.readlines():      # load file lines in textPanel.
             frame, timepoint, dist, ch0x, ch0y, ch0z, ch0vol, ch1x, ch1y, ch1z, ch1vol = line.split(",")
             tw.append(frame + "\t" + dist + "\t" )
@@ -243,9 +291,6 @@ class Measurer:
 
     def getImp(self):
         return self.imp
-
-    def getTw(self):
-        return self.tw
 
     def setAnOn(self, anOn):
         self.anOn = anOn
@@ -276,45 +321,28 @@ def delVal(tp, event):
     frame, distance, AOCol = tp.getLine(tp.getSelectionEnd()).split("\t")
     tp.setLine(tp.getSelectionEnd(), frame + "\tNA" + "\t" + AOCol)
 
-def cropVals(event): #"this function deletes all values with frame > current cursor"   
-    print meas.tp.getLineCount()
-    for line in range(meas.tp.getSelectionEnd(), meas.tp.getLineCount(), 1):
-        frame, distance, AOCol = meas.tp.getLine(line).split("\t")
-        #print line
-        meas.tp.setLine(line, frame + "\tNA" + "\t" + AOCol)
 
-def save(event):
-    anaphase = meas.getAnOn()
-    timeInterval = meas.getImp().getCalibration().frameInterval
-    annotation = mF.getAnnotation()
-    position = str(meas.cell.position)
-    cellIndex = str(meas.cell.cellNo)
-    print anaphase, timeInterval, annotation, position, cellIndex
-    if not os.path.exists(os.path.split(meas.cell.savePath)[0]): # check if save folder present.
-        os.makedirs(os.path.split(meas.cell.savePath)[0]) # create save folder, if not present
-    f = open(meas.cell.savePath ,"w")
-    # Position Cell Phenotype Frame Time AnOn Distance ch0x ch0y ch0z ch0vol ch1x ch1y ch1z ch1vol
-    f.write("Position,Cell,Phenotype,Frame,Time,Anaphase,Distance,ch0x,ch0y,ch0z,ch0vol,ch1x,ch1y,ch1z,ch1vol\n")
-    for i in range(meas.tp.getLineCount()):
-        frame, distance, a = meas.tp.getLine(i).split("\t")
-        corrFrame = str(int(frame)-int(anaphase))
-        time = "%.f" % (round(timeInterval) * int(corrFrame))
-        if distance == "NA":
-            ch0x, ch0y, ch0z, ch0vol, ch1x, ch1y, ch1z, ch1vol = "NA," * 7 + "NA"
-        else:
-            ch0x, ch0y, ch0z, ch0vol, ch1x, ch1y, ch1z, ch1vol = PositionsTable[i]
-        f.write(position+","+cellIndex+","+annotation+","+corrFrame+","+time+","+anaphase+","+distance+","+ch0x+","+ch0y+","+ch0z+","+ch0vol+","+ch1x+","+ch1y+","+ch1z+","+ch1vol)
-    f.close()
-    print "Successfully saved ", meas.cell.savePath
+# a class to show the results in a manipulatable way
+class correctionTable(TextWindow):
+    def __init__(self, openPath_csv, title, colNames, width, height):
+        self.setTitle(title)
+        self.panel = self.getTextPanel()
 
-def discardCell(event):
-    if not os.path.exists(os.path.split(meas.cell.savePath)[0]): # check if save folder present.
-        os.makedirs(os.path.split(meas.cell.savePath)[0]) # create save folder, if not present.
-    f = open(meas.cell.savePath ,"w")
-    # Position Cell Phenotype Frame Time AnOn Distance ch0x ch0y ch0z ch0vol ch1x ch1y ch1z ch1vol
-    f.write("Position,Cell,Phenotype,Frame,Time,AnOn,Distance,ch0x,ch0y,ch0z,ch0vol,ch1x,ch1y,ch1z,ch1vol\n")
-    f.close()
-    print "Discarded cell - saved dummy" 
+        txtfile = open(openPath_csv)
+        heads = txtfile.readlines(1)[0].split(",")
+        self.panel.setColumnHeadings(colNames)
+        for line in txtfile.readlines():      # load file lines in textPanel.
+            frame, timepoint, dist, ch0x, ch0y, ch0z, ch0vol, ch1x, ch1y, ch1z, ch1vol = line.split(",")
+            tw.append(frame + "\t" + dist + "\t" )
+            PositionsTable.append((ch0x, ch0y, ch0z, ch0vol, ch1x, ch1y, ch1z, ch1vol))       
+        #tw = TextWindow("Results", heads[0]+"\t"+heads[2]+"\t Anaphase", "", 50, 500)
+        self.requestFocus()
+        #tw.addWindowFocusListener(twFocusListener)
+
+        self.setSize(Dimension(50, 500))
+        
+
+
 
 # - - - M A I N - - -
 random.seed()
