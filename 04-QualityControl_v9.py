@@ -156,6 +156,7 @@ class MenueFrame(JFrame, ActionListener, WindowFocusListener): # should extend J
     def openRandom(self, event):      # when click here: get random cell and meas.measure(csv, tif, savePath)
         if self.mainDir == "":
             self.mainDir = DirectoryChooser("Random QC - Please choose main directory containing ctrl and test folders").getDirectory()
+            self.pathLabel.setText("MainDir: " + os.path.basename(os.path.split(self.mainDir)[0]))
         try:
             # should be complete disposal!
             self.cT.closeWindows()
@@ -193,7 +194,7 @@ class MenueFrame(JFrame, ActionListener, WindowFocusListener): # should extend J
             corrFrame = str(int(frame)-int(anaphase))
             time = "%.f" % (round(timeInterval) * int(corrFrame))
             if distance == "NA":
-                ch0x, ch0y, ch0z, ch0vol, ch1x, ch1y, ch1z, ch1vol = ("NA," * 7 + "NA").split(",")
+                ch0x, ch0y, ch0z, ch0vol, ch1x, ch1y, ch1z, ch1vol = ("NA," * 7 + "NA\n").split(",")
             else:
                 ch0x, ch0y, ch0z, ch0vol, ch1x, ch1y, ch1z, ch1vol = self.cT.getXYZtable()[i]
             f.write(position+","+cellIndex+","+annotation+","+corrFrame+","+time+","+anaphase+","+distance+","+ch0x+","+ch0y+","+ch0z+","+ch0vol+","+ch1x+","+ch1y+","+ch1z+","+ch1vol)
