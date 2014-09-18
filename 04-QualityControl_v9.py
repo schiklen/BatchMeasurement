@@ -127,15 +127,15 @@ class MenueFrame(JFrame, ActionListener, WindowFocusListener): # should extend J
 
         annoPanel = JPanel()
         #add gridlayout
-        wtRButton = JRadioButton("wt", actionCommand="wt")
-        wtRButton.addActionListener(self)
-        defectRButton = JRadioButton("Defect", actionCommand="defect")
-        defectRButton.addActionListener(self)
-        annoPanel.add(wtRButton)
-        annoPanel.add(defectRButton)
+        self.wtRButton = JRadioButton("wt", actionCommand="wt")
+        self.wtRButton.addActionListener(self)
+        self.defectRButton = JRadioButton("Defect", actionCommand="defect")
+        self.defectRButton.addActionListener(self)
+        annoPanel.add(self.wtRButton)
+        annoPanel.add(self.defectRButton)
         self.aButtonGroup = ButtonGroup()
-        self.aButtonGroup.add(wtRButton)
-        self.aButtonGroup.add(defectRButton)
+        self.aButtonGroup.add(self.wtRButton)
+        self.aButtonGroup.add(self.defectRButton)
       
         self.Panel.add(annoPanel)
 
@@ -170,6 +170,9 @@ class MenueFrame(JFrame, ActionListener, WindowFocusListener): # should extend J
                 # open imp and resultstable
                 self.cT = correctionTable(self.cell, self) #self, openPath_csv, mF
                 self.RBActionListener.setCell(self.cell)
+                # delete previous Radiobutton annotation
+                self.wtRButton.setSelected(False)
+                self.defectRButton.setSelected(True)
             else:
                 print "All cells measured!"
 
@@ -190,7 +193,7 @@ class MenueFrame(JFrame, ActionListener, WindowFocusListener): # should extend J
             corrFrame = str(int(frame)-int(anaphase))
             time = "%.f" % (round(timeInterval) * int(corrFrame))
             if distance == "NA":
-                ch0x, ch0y, ch0z, ch0vol, ch1x, ch1y, ch1z, ch1vol = "NA," * 7 + "NA"
+                ch0x, ch0y, ch0z, ch0vol, ch1x, ch1y, ch1z, ch1vol = ("NA," * 7 + "NA").split(",")
             else:
                 ch0x, ch0y, ch0z, ch0vol, ch1x, ch1y, ch1z, ch1vol = self.cT.getXYZtable()[i]
             f.write(position+","+cellIndex+","+annotation+","+corrFrame+","+time+","+anaphase+","+distance+","+ch0x+","+ch0y+","+ch0z+","+ch0vol+","+ch1x+","+ch1y+","+ch1z+","+ch1vol)
