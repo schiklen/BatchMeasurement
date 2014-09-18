@@ -14,7 +14,6 @@ from ij.io import DirectoryChooser
 
 G_SAVESUBDIR = "qc-meas"
 G_OPENSUBDIR = "meas"
-PositionsTable = []
 
 def bigRound(x, base):
     return int(base * round(float(x)/base))
@@ -186,7 +185,6 @@ class MenueFrame(JFrame, ActionListener, WindowFocusListener): # should extend J
         f = open(savepath, "w")
         # Position Cell Phenotype Frame Time AnOn Distance ch0x ch0y ch0z ch0vol ch1x ch1y ch1z ch1vol
         f.write("Position,Cell,Phenotype,Frame,Time,Anaphase,Distance,ch0x,ch0y,ch0z,ch0vol,ch1x,ch1y,ch1z,ch1vol\n")
-        print "heads written"
         for i in range(self.cT.getLineCount()):
             frame, distance, a = self.cT.getLine(i).split("\t")
             corrFrame = str(int(frame)-int(anaphase))
@@ -194,10 +192,10 @@ class MenueFrame(JFrame, ActionListener, WindowFocusListener): # should extend J
             if distance == "NA":
                 ch0x, ch0y, ch0z, ch0vol, ch1x, ch1y, ch1z, ch1vol = "NA," * 7 + "NA"
             else:
-                ch0x, ch0y, ch0z, ch0vol, ch1x, ch1y, ch1z, ch1vol = PositionsTable[i]
+                ch0x, ch0y, ch0z, ch0vol, ch1x, ch1y, ch1z, ch1vol = self.cT.getXYZtable()[i]
             f.write(position+","+cellIndex+","+annotation+","+corrFrame+","+time+","+anaphase+","+distance+","+ch0x+","+ch0y+","+ch0z+","+ch0vol+","+ch1x+","+ch1y+","+ch1z+","+ch1vol)
         f.close()
-        print "Successfully saved ", #self.cell.get
+        print "Successfully saved!"
 
     def cropVals(self, event): #"this function deletes all values with frame > current cursor"   
         for line in range(self.cT.getSelectionEnd(), self.cT.getLineCount(), 1):
@@ -274,27 +272,24 @@ class correctionTable(TextPanel):
         self.addKeyListener(ListenToKey())
         self.addMouseListener(ListenToMouse())
         
-        # TODO: unpacking info out of cell object 
+        # TODO: unpacking info out of cell object should be done in cell object itself and accessible e. g. via getData()
         self.imp = self.openImp(self.cell.getMeasTifPath())
         csvFile = open(self.cell.getCsvPath())        
         lines = csvFile.readlines()
         heads = lines.pop(0)
         self.setColumnHeadings("Frame\tDistance\tAnaphase")
-        self.PositionsTable = []
+        self.XYZtable = []
         for line in lines:      # load file lines in textPanel.
             frame, timepoint, dist, ch0x, ch0y, ch0z, ch0vol, ch1x, ch1y, ch1z, ch1vol = line.split(",")
             self.append(frame + "\t" + dist + "\t" )
-            self.PositionsTable.append((ch0x, ch0y, ch0z, ch0vol, ch1x, ch1y, ch1z, ch1vol))
+            self.XYZtable.append((ch0x, ch0y, ch0z, ch0vol, ch1x, ch1y, ch1z, ch1vol))
         self.setSelection(0,0) # int startline, int endline
         self.changeFrame()
-        
         self.mF.setSaveInactive()
         self.requestFocus()
 
         self.window.setSize(Dimension(220, 600))
         x = int(self.imp.getWindow().getLocation().getX()) + int(self.imp.getWindow().getWidth()) + 10
-        print "x", x
-        print self.imp.getWindow().getLocation().getY()
         self.window.setLocation(x, int(self.imp.getWindow().getLocation().getY()) )
         self.window.show()
 
@@ -336,7 +331,9 @@ class correctionTable(TextPanel):
 
     def getImp(self):
         return self.imp
-        
+
+    def getXYZtable(self):
+        return self.XYZtable
         
     def closeWindows(self):
         self.imp.close()
